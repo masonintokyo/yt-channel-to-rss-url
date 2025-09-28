@@ -1,0 +1,15 @@
+{
+  "name": "yt-channel-to-rss-url",
+  "version": "1.0.0",
+  "description": "Convert YouTube channel URLs or handles into RSS feed URLs.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.2.4",
+    "typescript": "^5.4.0",
+    "vitest": "^1.5.0"
+  }
+}
