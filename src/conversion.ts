@@ -120,14 +120,67 @@ function parseFromUrl(url: URL): ChannelIdentifierResult | null {
   return null;
 }
 
-export function extractChannelIdFromHtml(html: string): string | null {
-  const match = html.match(/"channelId"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/);
-  if (match) {
-    return match[1];
-  }
-  const linkMatch = html.match(/href="\/channel\/(UC[0-9A-Za-z_-]{22})"/);
-  if (linkMatch) {
-    return linkMatch[1];
+const CHANNEL_ID_EXTRACT_PATTERNS: RegExp[] = [
+  /"channelId"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/,
+  /"externalId"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/,
+  /"browseId"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/,
+  /"channelExternalId"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/,
+  /"ucid"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/,
+  /"channel_id"\s*:\s*"(UC[0-9A-Za-z_-]{22})"/,
+  /"canonicalBaseUrl"\s*:\s*"\/channel\/(UC[0-9A-Za-z_-]{22})"/,
+  /<link[^>]+rel="canonical"[^>]+href="https:\/\/www\.youtube\.com\/channel\/(UC[0-9A-Za-z_-]{22})"/i,
+  /<meta[^>]+itemprop="channelId"[^>]+content="(UC[0-9A-Za-z_-]{22})"/i,
+  /<meta[^>]+itemprop="identifier"[^>]+content="(UC[0-9A-Za-z_-]{22})"/i,
+  /<meta[^>]+property="og:url"[^>]+content="https:\/\/www\.youtube\.com\/channel\/(UC[0-9A-Za-z_-]{22})"/i,
+  /<link[^>]+rel="alternate"[^>]+href="https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[0-9A-Za-z_-]{22})"/i,
+  /href="\/channel\/(UC[0-9A-Za-z_-]{22})"/,
+  /https:\/\/www\.youtube\.com\/channel\/(UC[0-9A-Za-z_-]{22})/,
+];
+
+function findByPatterns(html: string): string | null {
+  for (const pattern of CHANNEL_ID_EXTRACT_PATTERNS) {
+    const match = html.match(pattern);
+    if (match) {
+      return match[1];
+    }
   }
   return null;
+}
+
+function findByContextualSearch(html: string): string | null {
+  const fallbackMatches = html.match(/UC[0-9A-Za-z_-]{22}/g);
+  if (!fallbackMatches) {
+    return null;
+  }
+
+  const seen = new Set<string>();
+  for (const candidate of fallbackMatches) {
+    if (seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+
+    const index = html.indexOf(candidate);
+    if (index === -1) {
+      continue;
+    }
+
+    const start = Math.max(0, index - 64);
+    const end = Math.min(html.length, index + candidate.length + 64);
+    const context = html.slice(start, end);
+    if (/(channel|ucid|external|browse|owner|canonical)/i.test(context)) {
+      return candidate;
+    }
+  }
+
+  return fallbackMatches[0] ?? null;
+}
+
+export function extractChannelIdFromHtml(html: string): string | null {
+  const byPattern = findByPatterns(html);
+  if (byPattern) {
+    return byPattern;
+  }
+
+  return findByContextualSearch(html);
 }

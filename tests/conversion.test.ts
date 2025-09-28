@@ -80,6 +80,23 @@ describe('extractChannelIdFromHtml', () => {
     expect(extractChannelIdFromHtml(html)).toBe('UC1111111111111111111111');
   });
 
+  it('extracts from canonical link', () => {
+    const html =
+      '<link rel="canonical" href="https://www.youtube.com/channel/UC2222222222222222222222" />';
+    expect(extractChannelIdFromHtml(html)).toBe('UC2222222222222222222222');
+  });
+
+  it('extracts from meta tag', () => {
+    const html = '<meta itemprop="channelId" content="UC3333333333333333333333" />';
+    expect(extractChannelIdFromHtml(html)).toBe('UC3333333333333333333333');
+  });
+
+  it('falls back to contextual UC match', () => {
+    const html =
+      '<div data-info="owner">UC4444444444444444444444</div><div>UC5555555555555555555555</div>';
+    expect(extractChannelIdFromHtml(html)).toBe('UC4444444444444444444444');
+  });
+
   it('returns null when not found', () => {
     expect(extractChannelIdFromHtml('<html></html>')).toBeNull();
   });
