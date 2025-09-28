@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube チャンネル RSS 変換ツール</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>YouTube チャンネル RSS 変換ツール</h1>
+      <p class="description">
+        YouTube のチャンネル URL や @ハンドルを貼り付けると RSS フィード URL を生成します。
+      </p>
+      <form id="converter-form" class="card">
+        <label for="channel-input" class="field-label">チャンネル URL または @ハンドル</label>
+        <input id="channel-input" type="text" name="channel" placeholder="https://www.youtube.com/@example" required />
+        <button type="submit">変換する</button>
+      </form>
+      <p id="error-message" class="error" hidden></p>
+      <div id="output" class="card" hidden>
+        <label for="rss-result" class="field-label">RSS フィード URL</label>
+        <div class="result-row">
+          <input id="rss-result" type="text" readonly />
+          <button type="button" id="copy-button" class="secondary">コピー</button>
+        </div>
+        <p class="hint">RSS リーダーに貼り付けて利用できます。</p>
+      </div>
+    </main>
+    <script type="module" src="/dist/main.js"></script>
+  </body>
+</html>
