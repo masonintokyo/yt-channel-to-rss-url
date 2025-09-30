@@ -23,6 +23,22 @@ body {
   gap: 1.5rem;
 }
 
+.language-switcher {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.language-switcher select {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: inherit;
+}
+
 h1 {
   font-size: 1.9rem;
   margin: 0;
@@ -99,6 +115,50 @@ button:hover {
   color: #475569;
 }
 
+.card-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.developer-list {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.developer-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.developer-item dt {
+  font-weight: 600;
+}
+
+.developer-item dd {
+  margin: 0;
+}
+
+.developer-item a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.developer-item a:hover,
+.developer-item a:focus {
+  text-decoration: underline;
+}
+
+.donation-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
 @media (max-width: 600px) {
   .result-row {
     flex-direction: column;
@@ -107,5 +167,9 @@ button:hover {
 
   button.secondary {
     width: 100%;
+  }
+
+  .language-switcher {
+    justify-content: center;
   }
 }

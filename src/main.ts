@@ -1,7 +1,8 @@
 import {
   buildFeedUrl,
   parseChannelIdentifier,
-  ChannelIdentifierResult,
+  type ChannelIdentifierResult,
+  type ErrorMessageKey,
 } from './conversion.js';
 
 const inputField = document.querySelector<HTMLInputElement>('#channel-input');
@@ -10,29 +11,253 @@ const resultField = document.querySelector<HTMLInputElement>('#rss-result');
 const errorField = document.querySelector<HTMLParagraphElement>('#error-message');
 const copyButton = document.querySelector<HTMLButtonElement>('#copy-button');
 const convertButton = document.querySelector<HTMLButtonElement>('#convert-button');
+const titleElement = document.querySelector<HTMLElement>('[data-i18n="title"]');
+const descriptionElement = document.querySelector<HTMLElement>('[data-i18n="description"]');
+const inputLabelElement = document.querySelector<HTMLLabelElement>('#channel-input-label');
+const resultLabelElement = document.querySelector<HTMLLabelElement>('[data-i18n="resultLabel"]');
+const hintElement = document.querySelector<HTMLElement>('[data-i18n="hint"]');
+const languageLabelElement = document.querySelector<HTMLLabelElement>('[data-i18n="languageLabel"]');
+const languageSelect = document.querySelector<HTMLSelectElement>('#language-select');
+const developerTitleElement = document.querySelector<HTMLElement>('[data-i18n="developerTitle"]');
+const developerDescriptionElement = document.querySelector<HTMLElement>('[data-i18n="developerDescription"]');
+const developerXLabelElement = document.querySelector<HTMLElement>('[data-i18n="developerXLabel"]');
+const developerGithubLabelElement = document.querySelector<HTMLElement>('[data-i18n="developerGithubLabel"]');
+const developerBtcLabelElement = document.querySelector<HTMLElement>('[data-i18n="developerBtcLabel"]');
+const developerEthLabelElement = document.querySelector<HTMLElement>('[data-i18n="developerEthLabel"]');
+const donationNoteElement = document.querySelector<HTMLElement>('[data-i18n="donationNote"]');
+const languageOptionEn = languageSelect?.querySelector<HTMLOptionElement>('option[value="en"]') ?? null;
+const languageOptionJa = languageSelect?.querySelector<HTMLOptionElement>('option[value="ja"]') ?? null;
+const developerXLink = document.querySelector<HTMLAnchorElement>('#developer-x');
+const developerGithubLink = document.querySelector<HTMLAnchorElement>('#developer-github');
+const developerBtcAddress = document.querySelector<HTMLElement>('#developer-btc');
+const developerEthAddress = document.querySelector<HTMLElement>('#developer-eth');
 
-function resetMessages() {
+const pageTitle = document.querySelector('title');
+
+const developerInfo = {
+  xHandle: '@yourhandle',
+  xUrl: 'https://x.com/yourhandle',
+  githubHandle: 'yourhandle',
+  githubUrl: 'https://github.com/yourhandle',
+  btcAddress: 'bc1-your-bitcoin-address',
+  ethAddress: '0xyourethereumaddress',
+};
+
+type Language = 'en' | 'ja';
+type LookupErrorMessageKey = 'lookupRequestFailed' | 'channelNotFound' | 'lookupUnexpectedError';
+type UiErrorKey =
+  | ErrorMessageKey
+  | LookupErrorMessageKey
+  | 'networkError'
+  | 'copyFailed'
+  | 'clipboardUnavailable';
+
+type Translation = {
+  ui: {
+    pageTitle: string;
+    title: string;
+    description: string;
+    inputLabel: string;
+    placeholder: string;
+    convert: string;
+    resultLabel: string;
+    copy: string;
+    copySuccess: string;
+    hint: string;
+    languageLabel: string;
+    languageOptionEnglish: string;
+    languageOptionJapanese: string;
+    developerTitle: string;
+    developerDescription: string;
+    developerXLabel: string;
+    developerGithubLabel: string;
+    developerBtcLabel: string;
+    developerEthLabel: string;
+    donationNote: string;
+  };
+  errors: Partial<Record<UiErrorKey, string>>;
+  defaultError: string;
+};
+
+const translations: Record<Language, Translation> = {
+  en: {
+    ui: {
+      pageTitle: 'YouTube Channel RSS Converter',
+      title: 'YouTube Channel RSS Converter',
+      description:
+        'Paste a YouTube channel URL, video URL, or @handle to generate the RSS feed URL.',
+      inputLabel: 'Channel, video URL, or @handle',
+      placeholder: 'https://www.youtube.com/@example',
+      convert: 'Convert',
+      resultLabel: 'RSS feed URL',
+      copy: 'Copy',
+      copySuccess: 'Copied!',
+      hint: 'Paste this URL into your RSS reader.',
+      languageLabel: 'Language',
+      languageOptionEnglish: 'English',
+      languageOptionJapanese: '日本語',
+      developerTitle: 'Developer Links & Support',
+      developerDescription: 'Connect with the developer or send a donation:',
+      developerXLabel: 'X (Twitter)',
+      developerGithubLabel: 'GitHub',
+      developerBtcLabel: 'BTC Address',
+      developerEthLabel: 'ETH Address',
+      donationNote: 'Donations are optional but greatly appreciated.',
+    },
+    errors: {
+      emptyInput: 'Input is empty. Please enter a channel URL, video URL, or @handle.',
+      urlParseFailed: 'Failed to parse the URL. Please check its format.',
+      unsupportedUrl: 'Could not detect a channel ID from this URL.',
+      nonYoutubeUrl: 'Please enter a YouTube URL.',
+      lookupRequestFailed: 'Could not retrieve channel information from YouTube. Please try again later.',
+      channelNotFound: 'The channel ID could not be determined.',
+      lookupUnexpectedError: 'An unexpected error occurred while resolving the channel ID.',
+      networkError: 'Failed to retrieve the channel ID. Please check your connection.',
+      copyFailed: 'Could not copy to the clipboard. Please copy the URL manually.',
+      clipboardUnavailable: 'Clipboard access is not available. Please copy the URL manually.',
+    },
+    defaultError: 'An unexpected error occurred.',
+  },
+  ja: {
+    ui: {
+      pageTitle: 'YouTube チャンネル RSS 変換ツール',
+      title: 'YouTube チャンネル RSS 変換ツール',
+      description:
+        'YouTube のチャンネル URL・動画 URL・@ハンドルを貼り付けると RSS フィード URL を生成します。',
+      inputLabel: 'チャンネル / 動画 URL または @ハンドル',
+      placeholder: 'https://www.youtube.com/@example',
+      convert: '変換する',
+      resultLabel: 'RSS フィード URL',
+      copy: 'コピー',
+      copySuccess: 'コピーしました',
+      hint: 'この URL を RSS リーダーに貼り付けて利用できます。',
+      languageLabel: '言語',
+      languageOptionEnglish: 'English',
+      languageOptionJapanese: '日本語',
+      developerTitle: '開発者情報と支援',
+      developerDescription: '開発者とつながる、または寄付で支援できます。',
+      developerXLabel: 'X (旧Twitter)',
+      developerGithubLabel: 'GitHub',
+      developerBtcLabel: 'BTC アドレス',
+      developerEthLabel: 'ETH アドレス',
+      donationNote: '寄付は任意ですが大変励みになります。',
+    },
+    errors: {
+      emptyInput: '入力が空です。チャンネル URL、動画 URL、または @ハンドルを入力してください。',
+      urlParseFailed: 'URL を解析できませんでした。形式を確認してください。',
+      unsupportedUrl: 'この URL からチャンネル ID を検出できませんでした。',
+      nonYoutubeUrl: 'YouTube の URL を入力してください。',
+      lookupRequestFailed: 'YouTube からチャンネル情報を取得できませんでした。時間をおいて再度お試しください。',
+      channelNotFound: 'チャンネル ID を特定できませんでした。',
+      lookupUnexpectedError: 'チャンネル ID の取得中に予期しないエラーが発生しました。',
+      networkError: 'チャンネル ID の取得に失敗しました。通信環境を確認してください。',
+      copyFailed: 'クリップボードへコピーできませんでした。手動でコピーしてください。',
+      clipboardUnavailable: 'クリップボード機能が利用できません。ブラウザの設定を確認してください。',
+    },
+    defaultError: '不明なエラーが発生しました。',
+  },
+};
+
+let currentLanguage: Language = 'en';
+let lastError: { key: UiErrorKey; fallback?: string } | null = null;
+let copyResetTimer: number | null = null;
+
+function setDocumentLanguage(lang: Language) {
+  document.documentElement.lang = lang;
+}
+
+function applyDeveloperInfo(): void {
+  if (developerXLink) {
+    developerXLink.href = developerInfo.xUrl;
+    developerXLink.textContent = developerInfo.xHandle;
+  }
+  if (developerGithubLink) {
+    developerGithubLink.href = developerInfo.githubUrl;
+    developerGithubLink.textContent = developerInfo.githubHandle;
+  }
+  if (developerBtcAddress) {
+    developerBtcAddress.textContent = developerInfo.btcAddress;
+  }
+  if (developerEthAddress) {
+    developerEthAddress.textContent = developerInfo.ethAddress;
+  }
+}
+
+function getErrorMessage(key: UiErrorKey, fallback?: string): string {
+  const translation = translations[currentLanguage];
+  const localized = translation.errors[key];
+  if (localized) {
+    return localized;
+  }
+  const englishFallback = translations.en.errors[key];
+  if (englishFallback) {
+    return englishFallback;
+  }
+  return fallback ?? translation.defaultError;
+}
+
+function showErrorMessage(message: string) {
+  if (!errorField) {
+    return;
+  }
+  errorField.textContent = message;
+  errorField.hidden = false;
+}
+
+function showErrorByKey(key: UiErrorKey, fallback?: string) {
+  lastError = { key, fallback };
+  showErrorMessage(getErrorMessage(key, fallback));
+}
+
+function resetError() {
   if (errorField) {
     errorField.textContent = '';
     errorField.hidden = true;
   }
+  lastError = null;
+}
+
+function setCopyButtonDefault() {
+  if (!copyButton) {
+    return;
+  }
+  copyButton.textContent = translations[currentLanguage].ui.copy;
+}
+
+function showCopySuccess() {
+  if (!copyButton) {
+    return;
+  }
+  copyButton.textContent = translations[currentLanguage].ui.copySuccess;
+  if (copyResetTimer !== null) {
+    window.clearTimeout(copyResetTimer);
+  }
+  copyResetTimer = window.setTimeout(() => {
+    setCopyButtonDefault();
+    copyResetTimer = null;
+  }, 2000);
+}
+
+function resetMessages() {
+  resetError();
   if (outputContainer) {
     outputContainer.hidden = true;
   }
-}
-
-function showError(message: string) {
-  if (errorField) {
-    errorField.textContent = message;
-    errorField.hidden = false;
+  if (copyResetTimer !== null) {
+    window.clearTimeout(copyResetTimer);
+    copyResetTimer = null;
   }
+  setCopyButtonDefault();
 }
 
 function showResult(channelId: string) {
-  if (outputContainer && resultField) {
+  if (resultField) {
     resultField.value = buildFeedUrl(channelId);
+  }
+  if (outputContainer) {
     outputContainer.hidden = false;
   }
+  resetError();
 }
 
 async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> {
@@ -45,23 +270,44 @@ async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> 
     try {
       const response = await fetch(`/api/resolve?input=${encodeURIComponent(result.lookupUrl)}`);
       if (!response.ok) {
-        const message = await response.text();
-        showError(message || 'チャンネル ID の取得に失敗しました。');
+        let fallbackMessage = '';
+        let messageKey: UiErrorKey | undefined;
+        try {
+          const errorPayload = (await response.json()) as {
+            message?: string;
+            messageKey?: UiErrorKey;
+          };
+          fallbackMessage = errorPayload.message ?? '';
+          messageKey = errorPayload.messageKey;
+        } catch (parseError) {
+          fallbackMessage = await response.text();
+        }
+        if (messageKey) {
+          showErrorByKey(messageKey, fallbackMessage);
+        } else {
+          showErrorByKey('lookupRequestFailed', fallbackMessage);
+        }
         return;
       }
-      const data: { channelId?: string; message?: string } = await response.json();
+      const data = (await response.json()) as {
+        channelId?: string;
+        message?: string;
+        messageKey?: UiErrorKey;
+      };
       if (data.channelId) {
         showResult(data.channelId);
+      } else if (data.messageKey) {
+        showErrorByKey(data.messageKey, data.message);
       } else {
-        showError(data.message ?? 'チャンネル ID を特定できませんでした。');
+        showErrorByKey('channelNotFound', data.message);
       }
     } catch (error) {
-      showError('チャンネル ID の取得に失敗しました。通信環境を確認してください。');
+      showErrorByKey('networkError');
     }
     return;
   }
 
-  showError(result.message);
+  showErrorByKey(result.messageKey, result.message);
 }
 
 async function handleConversion(): Promise<void> {
@@ -72,6 +318,70 @@ async function handleConversion(): Promise<void> {
   resetMessages();
   const result = parseChannelIdentifier(inputField.value);
   await resolveChannelId(result);
+}
+
+function applyTranslations() {
+  setDocumentLanguage(currentLanguage);
+  const translation = translations[currentLanguage];
+  document.title = translation.ui.pageTitle;
+  if (pageTitle) {
+    pageTitle.textContent = translation.ui.pageTitle;
+  }
+  if (titleElement) {
+    titleElement.textContent = translation.ui.title;
+  }
+  if (descriptionElement) {
+    descriptionElement.textContent = translation.ui.description;
+  }
+  if (inputLabelElement) {
+    inputLabelElement.textContent = translation.ui.inputLabel;
+  }
+  if (inputField) {
+    inputField.placeholder = translation.ui.placeholder;
+  }
+  if (convertButton) {
+    convertButton.textContent = translation.ui.convert;
+  }
+  if (resultLabelElement) {
+    resultLabelElement.textContent = translation.ui.resultLabel;
+  }
+  if (hintElement) {
+    hintElement.textContent = translation.ui.hint;
+  }
+  if (languageLabelElement) {
+    languageLabelElement.textContent = translation.ui.languageLabel;
+  }
+  if (languageOptionEn) {
+    languageOptionEn.textContent = translation.ui.languageOptionEnglish;
+  }
+  if (languageOptionJa) {
+    languageOptionJa.textContent = translation.ui.languageOptionJapanese;
+  }
+  if (developerTitleElement) {
+    developerTitleElement.textContent = translation.ui.developerTitle;
+  }
+  if (developerDescriptionElement) {
+    developerDescriptionElement.textContent = translation.ui.developerDescription;
+  }
+  if (developerXLabelElement) {
+    developerXLabelElement.textContent = translation.ui.developerXLabel;
+  }
+  if (developerGithubLabelElement) {
+    developerGithubLabelElement.textContent = translation.ui.developerGithubLabel;
+  }
+  if (developerBtcLabelElement) {
+    developerBtcLabelElement.textContent = translation.ui.developerBtcLabel;
+  }
+  if (developerEthLabelElement) {
+    developerEthLabelElement.textContent = translation.ui.developerEthLabel;
+  }
+  if (donationNoteElement) {
+    donationNoteElement.textContent = translation.ui.donationNote;
+  }
+  setCopyButtonDefault();
+  if (lastError) {
+    showErrorByKey(lastError.key, lastError.fallback);
+  }
 }
 
 if (convertButton) {
@@ -94,14 +404,29 @@ if (copyButton && resultField) {
     if (!resultField.value) {
       return;
     }
+    if (!navigator.clipboard) {
+      showErrorByKey('clipboardUnavailable');
+      return;
+    }
     try {
       await navigator.clipboard.writeText(resultField.value);
-      copyButton.textContent = 'コピーしました';
-      setTimeout(() => {
-        copyButton.textContent = 'コピー';
-      }, 2000);
+      showCopySuccess();
     } catch (error) {
-      showError('クリップボードへコピーできませんでした。手動でコピーしてください。');
+      showErrorByKey('copyFailed');
     }
   });
 }
+
+if (languageSelect) {
+  languageSelect.value = currentLanguage;
+  languageSelect.addEventListener('change', (event) => {
+    const target = event.target as HTMLSelectElement;
+    if (target.value === 'en' || target.value === 'ja') {
+      currentLanguage = target.value;
+      applyTranslations();
+    }
+  });
+}
+
+applyDeveloperInfo();
+applyTranslations();

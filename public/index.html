@@ -1,20 +1,31 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>YouTube チャンネル RSS 変換ツール</title>
+    <title>YouTube Channel RSS Converter</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="container">
-      <h1>YouTube チャンネル RSS 変換ツール</h1>
-      <p class="description">
-        YouTube のチャンネル URL や @ハンドルを貼り付けると RSS フィード URL を生成します。
+      <div class="language-switcher">
+        <label for="language-select" class="field-label" data-i18n="languageLabel">Language</label>
+        <select id="language-select" aria-label="Language">
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+        </select>
+      </div>
+      <h1 data-i18n="title">YouTube Channel RSS Converter</h1>
+      <p class="description" data-i18n="description">
+        Paste a YouTube channel URL, video URL, or @handle to generate the RSS feed URL.
       </p>
       <section id="converter-form" class="card" role="form" aria-labelledby="channel-input-label">
-        <label id="channel-input-label" for="channel-input" class="field-label"
-          >チャンネル URL または @ハンドル</label
+        <label
+          id="channel-input-label"
+          for="channel-input"
+          class="field-label"
+          data-i18n="inputLabel"
+          >Channel, video URL, or @handle</label
         >
         <input
           id="channel-input"
@@ -24,17 +35,53 @@
           autocomplete="off"
           required
         />
-        <button type="button" id="convert-button">変換する</button>
+        <button type="button" id="convert-button" data-i18n="convert">Convert</button>
       </section>
       <p id="error-message" class="error" hidden></p>
       <div id="output" class="card" hidden>
-        <label for="rss-result" class="field-label">RSS フィード URL</label>
+        <label for="rss-result" class="field-label" data-i18n="resultLabel">RSS feed URL</label>
         <div class="result-row">
           <input id="rss-result" type="text" readonly />
-          <button type="button" id="copy-button" class="secondary">コピー</button>
+          <button type="button" id="copy-button" class="secondary" data-i18n="copy">Copy</button>
         </div>
-        <p class="hint">RSS リーダーに貼り付けて利用できます。</p>
+        <p class="hint" data-i18n="hint">Paste this URL into your RSS reader.</p>
       </div>
+      <section id="developer-card" class="card">
+        <h2 class="card-title" data-i18n="developerTitle">Developer Links &amp; Support</h2>
+        <p data-i18n="developerDescription">Connect with the developer or send a donation:</p>
+        <dl class="developer-list">
+          <div class="developer-item">
+            <dt data-i18n="developerXLabel">X (Twitter)</dt>
+            <dd>
+              <a id="developer-x" href="https://x.com/yourhandle" target="_blank" rel="noopener noreferrer">
+                @yourhandle
+              </a>
+            </dd>
+          </div>
+          <div class="developer-item">
+            <dt data-i18n="developerGithubLabel">GitHub</dt>
+            <dd>
+              <a
+                id="developer-github"
+                href="https://github.com/yourhandle"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                yourhandle
+              </a>
+            </dd>
+          </div>
+          <div class="developer-item">
+            <dt data-i18n="developerBtcLabel">BTC Address</dt>
+            <dd><code id="developer-btc">bc1-your-bitcoin-address</code></dd>
+          </div>
+          <div class="developer-item">
+            <dt data-i18n="developerEthLabel">ETH Address</dt>
+            <dd><code id="developer-eth">0xyourethereumaddress</code></dd>
+          </div>
+        </dl>
+        <p class="donation-note" data-i18n="donationNote">Donations are optional but greatly appreciated.</p>
+      </section>
     </main>
     <script type="module" src="/dist/main.js"></script>
   </body>
