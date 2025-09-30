@@ -4,7 +4,7 @@ import {
   extractChannelIdFromHtml,
   parseChannelIdentifier,
   isChannelId,
-} from '../src/conversion';
+} from '../src/conversion.js';
 
 describe('parseChannelIdentifier', () => {
   it('parses direct channel id', () => {
