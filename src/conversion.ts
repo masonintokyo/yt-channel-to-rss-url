@@ -1,9 +1,30 @@
 export const CHANNEL_ID_PATTERN = /^UC[0-9A-Za-z_-]{22}$/;
 
+export type ErrorMessageKey =
+  | 'emptyInput'
+  | 'urlParseFailed'
+  | 'unsupportedUrl'
+  | 'nonYoutubeUrl';
+
 export type ChannelIdentifierResult =
   | { status: 'channelId'; channelId: string }
   | { status: 'needsLookup'; lookupUrl: string; normalizedInput: string }
-  | { status: 'error'; message: string };
+  | { status: 'error'; messageKey: ErrorMessageKey; message: string };
+
+const ERROR_MESSAGES: Record<ErrorMessageKey, string> = {
+  emptyInput: 'Input is empty. Please enter a channel URL, video URL, or @handle.',
+  urlParseFailed: 'Failed to parse the URL. Please check its format.',
+  unsupportedUrl: 'Could not detect a channel ID from this URL.',
+  nonYoutubeUrl: 'Please enter a YouTube URL.',
+};
+
+function createError(messageKey: ErrorMessageKey): ChannelIdentifierResult {
+  return {
+    status: 'error',
+    messageKey,
+    message: ERROR_MESSAGES[messageKey],
+  };
+}
 
 export function normalizeInput(raw: string): string {
   return raw.trim();
@@ -21,7 +42,7 @@ export function parseChannelIdentifier(rawInput: string): ChannelIdentifierResul
   const input = normalizeInput(rawInput);
 
   if (!input) {
-    return { status: 'error', message: '入力が空です。チャンネル URL か @ハンドルを入力してください。' };
+    return createError('emptyInput');
   }
 
   if (isChannelId(input)) {
@@ -43,12 +64,9 @@ export function parseChannelIdentifier(rawInput: string): ChannelIdentifierResul
       if (fromUrl) {
         return fromUrl;
       }
-      return {
-        status: 'error',
-        message: 'この URL からはチャンネル ID を検出できませんでした。',
-      };
+      return createError('unsupportedUrl');
     } catch (error) {
-      return { status: 'error', message: 'URL の解析に失敗しました。形式を確認してください。' };
+      return createError('urlParseFailed');
     }
   }
 
@@ -62,10 +80,7 @@ export function parseChannelIdentifier(rawInput: string): ChannelIdentifierResul
 function parseFromUrl(url: URL): ChannelIdentifierResult | null {
   const host = url.host.toLowerCase();
   if (!host.includes('youtube.com') && !host.endsWith('youtu.be')) {
-    return {
-      status: 'error',
-      message: 'YouTube の URL を入力してください。',
-    };
+    return createError('nonYoutubeUrl');
   }
 
   if (url.searchParams.has('channel_id')) {
@@ -101,7 +116,42 @@ function parseFromUrl(url: URL): ChannelIdentifierResult | null {
 
   const segments = url.pathname.split('/').filter(Boolean);
   if (segments.length >= 1) {
-    const segment = segments[0];
+    const [firstSegment, secondSegment] = segments;
+
+    if (host.endsWith('youtu.be')) {
+      const videoId = firstSegment;
+      if (videoId) {
+        return {
+          status: 'needsLookup',
+          lookupUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          normalizedInput: `video:${videoId}`,
+        };
+      }
+    }
+
+    if (firstSegment === 'watch') {
+      const videoId = url.searchParams.get('v');
+      if (videoId) {
+        return {
+          status: 'needsLookup',
+          lookupUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          normalizedInput: `video:${videoId}`,
+        };
+      }
+    }
+
+    if (firstSegment === 'shorts' || firstSegment === 'live') {
+      const videoId = secondSegment;
+      if (videoId) {
+        return {
+          status: 'needsLookup',
+          lookupUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          normalizedInput: `video:${videoId}`,
+        };
+      }
+    }
+
+    const segment = firstSegment;
     if (segment === 'c' || segment === 'user' || segment === 'channel') {
       const identifier = segments[1];
       if (identifier) {

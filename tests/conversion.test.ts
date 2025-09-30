@@ -46,7 +46,26 @@ describe('parseChannelIdentifier', () => {
     const result = parseChannelIdentifier('https://example.com/channel/123');
     expect(result).toEqual({
       status: 'error',
-      message: 'YouTube の URL を入力してください。',
+      messageKey: 'nonYoutubeUrl',
+      message: 'Please enter a YouTube URL.',
+    });
+  });
+
+  it('marks watch URL for lookup', () => {
+    const result = parseChannelIdentifier('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result).toEqual({
+      status: 'needsLookup',
+      lookupUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      normalizedInput: 'video:dQw4w9WgXcQ',
+    });
+  });
+
+  it('normalizes youtu.be URL to watch lookup', () => {
+    const result = parseChannelIdentifier('https://youtu.be/dQw4w9WgXcQ');
+    expect(result).toEqual({
+      status: 'needsLookup',
+      lookupUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      normalizedInput: 'video:dQw4w9WgXcQ',
     });
   });
 });

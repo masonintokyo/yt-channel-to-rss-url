@@ -3,21 +3,40 @@ import {
   extractChannelIdFromHtml,
   parseChannelIdentifier,
   isChannelId,
+  type ErrorMessageKey,
 } from '../src/conversion.js';
+
+type LookupErrorMessageKey = 'lookupRequestFailed' | 'channelNotFound' | 'lookupUnexpectedError';
+
+type ResponseErrorKey = ErrorMessageKey | LookupErrorMessageKey;
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
 
+function respondWithError(
+  response: VercelResponse,
+  status: number,
+  messageKey: ResponseErrorKey,
+  message: string,
+) {
+  response.status(status).json({ messageKey, message });
+}
+
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   const input = (request.query.input as string | undefined) ?? '';
   if (!input) {
-    response.status(400).json({ message: 'input クエリパラメータを指定してください。' });
+    respondWithError(
+      response,
+      400,
+      'emptyInput',
+      'Please provide the input query parameter.',
+    );
     return;
   }
 
   const parsed = parseChannelIdentifier(input);
   if (parsed.status === 'error') {
-    response.status(400).json({ message: parsed.message });
+    respondWithError(response, 400, parsed.messageKey, parsed.message);
     return;
   }
 
@@ -30,7 +49,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const fetchResponse = await fetch(parsed.lookupUrl, {
       headers: {
         'User-Agent': USER_AGENT,
-        'Accept-Language': 'ja,en;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,ja;q=0.7',
       },
     });
 
@@ -40,9 +59,12 @@ export default async function handler(request: VercelRequest, response: VercelRe
         statusText: fetchResponse.statusText,
         url: parsed.lookupUrl,
       });
-      response
-        .status(502)
-        .json({ message: 'YouTube からチャンネル情報を取得できませんでした。時間をおいて再度お試しください。' });
+      respondWithError(
+        response,
+        502,
+        'lookupRequestFailed',
+        'Could not retrieve channel information from YouTube. Please try again later.',
+      );
       return;
     }
 
@@ -51,7 +73,12 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
     if (!channelId || !isChannelId(channelId)) {
       console.warn('channelId not found in response', { lookupUrl: parsed.lookupUrl });
-      response.status(404).json({ message: 'チャンネル ID を特定できませんでした。' });
+      respondWithError(
+        response,
+        404,
+        'channelNotFound',
+        'The channel ID could not be determined.',
+      );
       return;
     }
 
@@ -59,6 +86,11 @@ export default async function handler(request: VercelRequest, response: VercelRe
     response.status(200).json({ channelId });
   } catch (error) {
     console.error('Unexpected error during channel lookup', error);
-    response.status(500).json({ message: 'チャンネル ID の検索中にエラーが発生しました。' });
+    respondWithError(
+      response,
+      500,
+      'lookupUnexpectedError',
+      'An unexpected error occurred while resolving the channel ID.',
+    );
   }
 }
