@@ -2,14 +2,14 @@ import {
   buildFeedUrl,
   parseChannelIdentifier,
   ChannelIdentifierResult,
-} from './conversion';
+} from './conversion.js';
 
-const form = document.querySelector<HTMLFormElement>('#converter-form');
 const inputField = document.querySelector<HTMLInputElement>('#channel-input');
 const outputContainer = document.querySelector<HTMLDivElement>('#output');
 const resultField = document.querySelector<HTMLInputElement>('#rss-result');
 const errorField = document.querySelector<HTMLParagraphElement>('#error-message');
 const copyButton = document.querySelector<HTMLButtonElement>('#copy-button');
+const convertButton = document.querySelector<HTMLButtonElement>('#convert-button');
 
 function resetMessages() {
   if (errorField) {
@@ -64,12 +64,28 @@ async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> 
   showError(result.message);
 }
 
-if (form && inputField) {
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    resetMessages();
-    const result = parseChannelIdentifier(inputField.value);
-    await resolveChannelId(result);
+async function handleConversion(): Promise<void> {
+  if (!inputField) {
+    return;
+  }
+
+  resetMessages();
+  const result = parseChannelIdentifier(inputField.value);
+  await resolveChannelId(result);
+}
+
+if (convertButton) {
+  convertButton.addEventListener('click', async () => {
+    await handleConversion();
+  });
+}
+
+if (inputField) {
+  inputField.addEventListener('keydown', async (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      await handleConversion();
+    }
   });
 }
 
