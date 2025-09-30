@@ -12,11 +12,20 @@
       <p class="description">
         YouTube のチャンネル URL や @ハンドルを貼り付けると RSS フィード URL を生成します。
       </p>
-      <form id="converter-form" class="card">
-        <label for="channel-input" class="field-label">チャンネル URL または @ハンドル</label>
-        <input id="channel-input" type="text" name="channel" placeholder="https://www.youtube.com/@example" required />
-        <button type="submit">変換する</button>
-      </form>
+      <section id="converter-form" class="card" role="form" aria-labelledby="channel-input-label">
+        <label id="channel-input-label" for="channel-input" class="field-label"
+          >チャンネル URL または @ハンドル</label
+        >
+        <input
+          id="channel-input"
+          type="text"
+          name="channel"
+          placeholder="https://www.youtube.com/@example"
+          autocomplete="off"
+          required
+        />
+        <button type="button" id="convert-button">変換する</button>
+      </section>
       <p id="error-message" class="error" hidden></p>
       <div id="output" class="card" hidden>
         <label for="rss-result" class="field-label">RSS フィード URL</label>
