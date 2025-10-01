@@ -26,7 +26,14 @@ Vercel にリポジトリを接続し、以下を設定してください。
 
 `api/resolve.ts` は自動的に Serverless Function としてデプロイされます。
 
+### Google 検索に掲載させるには
+- `public/index.html` に含まれる `<link rel="canonical">`・`og:url`・`meta description` を本番ドメインに合わせて更新する。
+- `public/robots.txt` と `public/sitemap.xml` の URL を本番ドメインへ差し替え、デプロイ後にブラウザで内容を確認する。
+- [Google Search Console](https://search.google.com/search-console/about) でサイト所有権を確認し、`/sitemap.xml` を登録してインデックス登録をリクエストする。
+- 詳細な手順は [docs/SEO.md](docs/SEO.md) を参照してください。
+
 ## ドキュメント
 - [docs/PLAN.md](docs/PLAN.md)
 - [docs/DEVELOPER.md](docs/DEVELOPER.md)
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+- [docs/SEO.md](docs/SEO.md)

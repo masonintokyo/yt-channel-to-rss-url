@@ -1,0 +1,5 @@
+# Update the Sitemap URL to match your production domain before deploying.
+User-agent: *
+Allow: /
+
+Sitemap: https://your-domain.vercel.app/sitemap.xml
