@@ -9,6 +9,7 @@ const inputField = document.querySelector<HTMLInputElement>('#channel-input');
 const outputContainer = document.querySelector<HTMLDivElement>('#output');
 const resultField = document.querySelector<HTMLInputElement>('#rss-result');
 const errorField = document.querySelector<HTMLParagraphElement>('#error-message');
+const successField = document.querySelector<HTMLParagraphElement>('#success-message');
 const copyButton = document.querySelector<HTMLButtonElement>('#copy-button');
 const convertButton = document.querySelector<HTMLButtonElement>('#convert-button');
 const titleElement = document.querySelector<HTMLElement>('[data-i18n="title"]');
@@ -51,6 +52,7 @@ type UiErrorKey =
   | 'networkError'
   | 'copyFailed'
   | 'clipboardUnavailable';
+type SuccessMessageKey = 'successGenerated' | 'successUpdated';
 
 type Translation = {
   ui: {
@@ -74,6 +76,8 @@ type Translation = {
     developerBtcLabel: string;
     developerEthLabel: string;
     donationNote: string;
+    successGenerated: string;
+    successUpdated: string;
   };
   errors: Partial<Record<UiErrorKey, string>>;
   defaultError: string;
@@ -103,6 +107,8 @@ const translations: Record<Language, Translation> = {
       developerBtcLabel: 'BTC Address',
       developerEthLabel: 'ETH Address',
       donationNote: 'Donations are optional but greatly appreciated.',
+      successGenerated: 'RSS feed URL generated successfully.',
+      successUpdated: 'RSS feed URL updated.',
     },
     errors: {
       emptyInput: 'Input is empty. Please enter a channel URL, video URL, or @handle.',
@@ -141,6 +147,8 @@ const translations: Record<Language, Translation> = {
       developerBtcLabel: 'BTC アドレス',
       developerEthLabel: 'ETH アドレス',
       donationNote: '寄付は任意ですが大変励みになります。',
+      successGenerated: 'RSS フィード URL を生成しました。',
+      successUpdated: 'RSS フィード URL を更新しました。',
     },
     errors: {
       emptyInput: '入力が空です。チャンネル URL、動画 URL、または @ハンドルを入力してください。',
@@ -161,6 +169,10 @@ const translations: Record<Language, Translation> = {
 let currentLanguage: Language = 'en';
 let lastError: { key: UiErrorKey; fallback?: string } | null = null;
 let copyResetTimer: number | null = null;
+let successResetTimer: number | null = null;
+let lastSuccessKey: SuccessMessageKey | null = null;
+let lastFeedUrl: string | null = null;
+let activeConversionToken = 0;
 
 function setDocumentLanguage(lang: Language) {
   document.documentElement.lang = lang;
@@ -200,6 +212,7 @@ function showErrorMessage(message: string) {
   if (!errorField) {
     return;
   }
+  hideSuccessMessage();
   errorField.textContent = message;
   errorField.hidden = false;
 }
@@ -215,6 +228,38 @@ function resetError() {
     errorField.hidden = true;
   }
   lastError = null;
+}
+
+function hideSuccessMessage() {
+  if (!successField) {
+    return;
+  }
+  successField.textContent = '';
+  successField.hidden = true;
+  lastSuccessKey = null;
+  if (successResetTimer !== null) {
+    window.clearTimeout(successResetTimer);
+    successResetTimer = null;
+  }
+}
+
+function showSuccessMessageByKey(key: SuccessMessageKey) {
+  if (!successField) {
+    return;
+  }
+  successField.textContent = translations[currentLanguage].ui[key];
+  successField.hidden = false;
+  lastSuccessKey = key;
+  if (successResetTimer !== null) {
+    window.clearTimeout(successResetTimer);
+  }
+  successResetTimer = window.setTimeout(() => {
+    hideSuccessMessage();
+  }, 4000);
+}
+
+function isActiveConversion(token: number): boolean {
+  return token === activeConversionToken;
 }
 
 function setCopyButtonDefault() {
@@ -240,6 +285,7 @@ function showCopySuccess() {
 
 function resetMessages() {
   resetError();
+  hideSuccessMessage();
   if (outputContainer) {
     outputContainer.hidden = true;
   }
@@ -251,17 +297,28 @@ function resetMessages() {
 }
 
 function showResult(channelId: string) {
+  const feedUrl = buildFeedUrl(channelId);
   if (resultField) {
-    resultField.value = buildFeedUrl(channelId);
+    resultField.value = feedUrl;
   }
   if (outputContainer) {
     outputContainer.hidden = false;
   }
+  const messageKey: SuccessMessageKey = lastFeedUrl === null ? 'successGenerated' : 'successUpdated';
+  lastFeedUrl = feedUrl;
+  showSuccessMessageByKey(messageKey);
   resetError();
 }
 
-async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> {
+async function resolveChannelId(result: ChannelIdentifierResult, token: number): Promise<void> {
+  if (!isActiveConversion(token)) {
+    return;
+  }
+
   if (result.status === 'channelId') {
+    if (!isActiveConversion(token)) {
+      return;
+    }
     showResult(result.channelId);
     return;
   }
@@ -269,6 +326,9 @@ async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> 
   if (result.status === 'needsLookup') {
     try {
       const response = await fetch(`/api/resolve?input=${encodeURIComponent(result.lookupUrl)}`);
+      if (!isActiveConversion(token)) {
+        return;
+      }
       if (!response.ok) {
         let fallbackMessage = '';
         let messageKey: UiErrorKey | undefined;
@@ -282,6 +342,9 @@ async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> 
         } catch (parseError) {
           fallbackMessage = await response.text();
         }
+        if (!isActiveConversion(token)) {
+          return;
+        }
         if (messageKey) {
           showErrorByKey(messageKey, fallbackMessage);
         } else {
@@ -294,6 +357,9 @@ async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> 
         message?: string;
         messageKey?: UiErrorKey;
       };
+      if (!isActiveConversion(token)) {
+        return;
+      }
       if (data.channelId) {
         showResult(data.channelId);
       } else if (data.messageKey) {
@@ -302,11 +368,17 @@ async function resolveChannelId(result: ChannelIdentifierResult): Promise<void> 
         showErrorByKey('channelNotFound', data.message);
       }
     } catch (error) {
+      if (!isActiveConversion(token)) {
+        return;
+      }
       showErrorByKey('networkError');
     }
     return;
   }
 
+  if (!isActiveConversion(token)) {
+    return;
+  }
   showErrorByKey(result.messageKey, result.message);
 }
 
@@ -315,9 +387,10 @@ async function handleConversion(): Promise<void> {
     return;
   }
 
+  const token = ++activeConversionToken;
   resetMessages();
   const result = parseChannelIdentifier(inputField.value);
-  await resolveChannelId(result);
+  await resolveChannelId(result, token);
 }
 
 function applyTranslations() {
@@ -379,6 +452,9 @@ function applyTranslations() {
     donationNoteElement.textContent = translation.ui.donationNote;
   }
   setCopyButtonDefault();
+  if (successField && !successField.hidden && lastSuccessKey) {
+    successField.textContent = translation.ui[lastSuccessKey];
+  }
   if (lastError) {
     showErrorByKey(lastError.key, lastError.fallback);
   }
