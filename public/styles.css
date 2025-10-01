@@ -99,6 +99,11 @@ button:hover {
   margin: 0;
 }
 
+.success {
+  color: #047857;
+  margin: 0;
+}
+
 .result-row {
   display: flex;
   gap: 0.5rem;
